@@ -1,31 +1,43 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const axios = require("axios");
 
-// POST /api/assistant
-router.post('/', protect, async (req, res) => {
+router.post("/ask", async (req, res) => {
+  const { question } = req.body;
+
+  console.log("Question reçue:", question);
+  console.log("Clé Groq:", process.env.GROQ_API_KEY ? "présente" : "MANQUANTE");
+
   try {
-    const { messages, systeme } = req.body;
-
-    const response = await fetch('http://localhost:11434/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama3',
+    const response = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: "llama-3.3-70b-versatile",
         messages: [
-          { role: 'system', content: systeme || 'Tu es un assistant agricole expert.' },
-          ...messages.map(m => ({ role: m.role, content: m.content }))
-        ],
-        stream: false
-      })
-    });
+          {
+            role: "system",
+            content: "Tu es un assistant agricole pour NABTA."
+          },
+          {
+            role: "user",
+            content: question
+          }
+        ]
+      },
+      {
+        headers: {
+          "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
 
-    const data = await response.json();
-    res.json({ reponse: data.message?.content || 'Désolé, pas de réponse.' });
+    res.json({ reply: response.data.choices[0].message.content });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Erreur complète:", error.response?.data || error.message);
+    res.status(500).json({ reply: "Erreur serveur, réessaie." });
   }
 });
-
 
 module.exports = router;

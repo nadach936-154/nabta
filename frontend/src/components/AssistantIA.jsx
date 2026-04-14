@@ -1,6 +1,6 @@
 // src/components/AssistantIA.jsx
-// IA intelligente locale — fonctionne SANS connexion API externe
-// Répond à TOUTES les questions comme ChatGPT / Gemini
+// ✅ VERSION CORRIGÉE — suppression du bloc await orphelin (ligne 533)
+// L'IA utilise la base de connaissances locale (pas d'appel API externe)
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -11,7 +11,7 @@ const STORAGE_KEY = 'nabta_ia_v3_';
    BASE DE CONNAISSANCES — couvre tous les domaines
 ════════════════════════════════════════════════════════════════ */
 const KB = [
-  // ── Agriculture ────────────────────────────────────────────────
+  // ── Agriculture ─────────────────────────────────────────────────
   { t:'irrigation eau arrosage goutte', r:`💧 **Irrigation optimale**
 
 **Quand arroser ?** Tôt le matin (6h-8h) ou en soirée (18h-20h) pour éviter l'évaporation.
@@ -28,7 +28,7 @@ const KB = [
 
   { t:'maladie champignon rouille mildiou oïdium plante traitement', r:`🌿 **Maladies fréquentes des cultures**
 
-**Rouille (blé)** : pustules orange/brun → Traitement : fongicide triazole (Tebuconazole). Préventif en novembre.
+**Rouille (blé)** : pustules orange/brun → fongicide triazole (Tebuconazole). Préventif en novembre.
 
 **Mildiou (tomate/vigne)** : taches huileuses grises → Cuivre + Mancozèbe. Évitez l'arrosage foliaire.
 
@@ -63,23 +63,20 @@ const KB = [
 | Orge | Oct-Nov | Mai-Juin |
 | Tomate (plein champ) | Mars-Avr | Août-Oct |
 | Pomme de terre | Janv-Fév | Avr-Mai |
-| Piment | Janv-Fév (pépinière) | Avr-Juin |
+| Piment | Janv-Fév | Avr-Juin |
 | Oliviers | — | Oct-Déc |
 | Dattes | — | Sept-Nov |
-| Grenade | — | Sept-Oct |
 
 **Indicateurs de maturité :**
 - Blé : couleur dorée + grain dur à l'ongle
-- Tomate : couleur uniforme + légère résistance à la pression
-- Olive : passage vert → violet (pour huile) ou noir (table)` },
+- Tomate : couleur uniforme + légère résistance
+- Olive : passage vert → violet (pour huile)` },
 
-  { t:'semis semence plantation germination', r:`🌱 **Techniques de semis**
+  { t:'semis semence plantation germination graine', r:`🌱 **Techniques de semis**
 
 **Profondeur :** 2-3x le diamètre de la graine
-- Blé : 3-5 cm
-- Maïs : 4-6 cm
-- Tomate : 0.5-1 cm
-- Carotte : 0.5-1 cm
+- Blé : 3-5 cm | Maïs : 4-6 cm
+- Tomate : 0.5-1 cm | Carotte : 0.5-1 cm
 
 **Densité Blé Dur :** 120-150 kg/ha (400-500 grains/m²)
 
@@ -88,23 +85,22 @@ const KB = [
 - Maïs : 12°C → semer en mars-avril
 - Tomate : 15°C → transplanter en mars
 
-**Traitement semences :** fongicide + insecticide avant semis pour protéger contre les maladies telluriques.` },
+**Traitement semences :** fongicide + insecticide avant semis.` },
 
-  { t:'olivier olive huile oleiculture taille', r:`🫒 **Culture de l'olivier en Tunisie**
+  { t:'olivier olive huile oleiculture taille mouche', r:`🫒 **Culture de l'olivier en Tunisie**
 
-**Taille :** printemps (mars-avril) après récolte. Aérez le centre, supprimez les branches mortes.
+**Taille :** printemps (mars-avril) après récolte.
 
 **Fertilisation :** 100-150 g N + 60 g P + 80 g K par arbre adulte/an
 
-**Irrigation :** 30-50 L/arbre/semaine en été. L'olivier est résistant à la sécheresse mais produit mieux avec un apport.
+**Irrigation :** 30-50 L/arbre/semaine en été.
 
-**Mouche de l'olivier (Bactrocera oleae) :**
+**Mouche de l'olivier :**
 → Pièges chromatiques jaunes + phéromones
 → Traitement : spinosad ou kaolin (bio)
 → Période critique : août-septembre
 
-**Récolte :** octobre-décembre selon région. Pour huile : stade noir 30%, vert 70%.
-Rendement : 6-8 kg huile/arbre adulte en bonne année.` },
+**Récolte :** octobre-décembre. Pour huile : stade noir 30%, vert 70%.` },
 
   { t:'prix marché vente revenu agricole tunisie', r:`💰 **Prix marché agricole Tunisie 2026**
 
@@ -118,216 +114,167 @@ Rendement : 6-8 kg huile/arbre adulte en bonne année.` },
 | Piments | 800-1500 DT/tonne |
 
 **Canaux de vente :**
-- Marché de gros (SICA) : prix minimum garanti
+- Marché de gros (SICA)
 - Vente directe : +30-40% de marge
-- Export : UE, Moyen-Orient (nécessite certification)
-- NABTA Marketplace : vendez directement en ligne !` },
+- NABTA Marketplace !` },
 
-  // ── Technologie ────────────────────────────────────────────────
+  { t:'pesticide insecticide ravageur puceron chenille', r:`🧪 **Lutte intégrée contre les ravageurs**
+
+- Pucerons → pyrèthre naturel ou savon insecticide
+- Chenilles → Bacillus thuringiensis (bio)
+- Mouche blanche → Pièges jaunes + Imidaclopride
+- Doryphore → rotation + pyrèthre
+
+**Règles :** traitez tôt le matin, respectez les délais avant récolte, alternez les matières actives.` },
+
+  // ── Technologie ─────────────────────────────────────────────────
   { t:'programmation code python javascript react html css', r:`💻 **Programmation — Je peux vous aider !**
 
-Dites-moi précisément :
-- Le **langage** (Python, JavaScript, React, HTML/CSS, SQL...)
-- Ce que vous voulez **faire** ou le **bug** que vous avez
-- Votre **niveau** (débutant, intermédiaire, avancé)
+Précisez votre langage et votre problème. Python, JavaScript, React, HTML/CSS, SQL...
 
-**Exemples de questions :**
+**Exemples :**
 - "Comment créer un tableau en Python ?"
 - "Explique-moi les hooks React"
-- "Mon code JavaScript affiche undefined, pourquoi ?"
 - "Comment faire une requête SQL avec JOIN ?"
 
-Je suis là pour vous guider étape par étape ! 🚀` },
+Je résous étape par étape ! 🚀` },
 
-  { t:'intelligence artificielle ia chatgpt gpt machine learning deep learning', r:`🤖 **Intelligence Artificielle — Explication**
-
-**C'est quoi ?** L'IA = programmes capables d'apprendre et de raisonner comme un humain.
+  { t:'intelligence artificielle ia chatgpt gpt machine learning', r:`🤖 **Intelligence Artificielle**
 
 **Types principaux :**
-- **Machine Learning** : l'algorithme apprend des données (ex: filtrage spam)
-- **Deep Learning** : réseaux de neurones profonds (ex: reconnaissance d'images)
-- **LLM** (Large Language Model) : modèles de langage comme ChatGPT, Claude, Gemini
+- **Machine Learning** : l'algorithme apprend des données
+- **Deep Learning** : réseaux de neurones profonds
+- **LLM** (ChatGPT, Claude, Gemini) : modèles de langage
 
 **Comment marche ChatGPT ?**
-GPT est entraîné sur des milliards de textes. Il prédit le mot le plus probable à chaque étape. Ce n'est pas "intelligence" au sens humain — c'est une statistique très sophistiquée.
+GPT est entraîné sur des milliards de textes. Il prédit le mot le plus probable à chaque étape.
 
 **Applications agricoles :**
 - Reconnaissance de maladies par photo
 - Prévision des rendements
-- Optimisation de l'irrigation
-- Prix du marché en temps réel` },
+- Optimisation de l'irrigation` },
 
   { t:'internet wifi réseau protocole web site', r:`🌐 **Comment fonctionne Internet ?**
 
-1. **DNS** : traduit "google.com" → adresse IP (142.250.185.46)
-2. **TCP/IP** : protocole qui découpe les données en paquets
-3. **HTTP/HTTPS** : protocole pour les pages web (S = sécurisé avec SSL)
-4. **Routeur** : dirige les paquets vers la bonne destination
+1. **DNS** : traduit les noms de domaine en adresses IP
+2. **TCP/IP** : protocole de transport des données
+3. **HTTP/HTTPS** : protocole des pages web (S = sécurisé SSL)
+4. **Routeur** : dirige les paquets vers destination
 
-**WiFi vs 4G/5G :**
-- WiFi : réseau local, utilise box ADSL/fibre
-- 4G/5G : réseau mobile, opérateurs Tunisie (Ooredoo, Orange, Tunisie Telecom)
+**Sécurité :** utilisez HTTPS, mot de passe WiFi fort (12+ caractères).` },
 
-**Conseils sécurité :**
-- Utilisez HTTPS (🔒 dans l'URL)
-- Mot de passe WiFi fort (12+ caractères)
-- VPN sur les réseaux publics` },
-
-  // ── Mathématiques ──────────────────────────────────────────────
+  // ── Mathématiques ────────────────────────────────────────────────
   { t:'mathématiques calcul équation algèbre géométrie', r:`📐 **Mathématiques — Prêt à vous aider !**
 
-Posez votre question mathématique précise et je la résoudrai étape par étape.
+Posez votre question et je la résoudrai étape par étape.
 
-**Ce que je peux faire :**
-- Résoudre des équations (1er, 2e degré, systèmes)
-- Calculs de superficie, volume, périmètre
-- Statistiques et probabilités
-- Convertions et proportions
-- Calculs agricoles (surface, dose d'engrais, rendement)
-
-**Exemple utile pour agriculteurs :**
-*Surface d'une parcelle triangulaire* : S = (base × hauteur) / 2
-*Dose d'engrais* : (quantité totale ÷ surface totale) × votre surface` },
+**Utile pour agriculteurs :**
+- Surface triangulaire : S = (base × hauteur) / 2
+- Surface rectangulaire : S = longueur × largeur
+- Dose engrais : (quantité/ha) × votre surface
+- Rendement : production ÷ surface` },
 
   { t:'pourcentage pourcent calculer proportion', r:`📊 **Calculs de pourcentage**
 
-**Formule de base :**
-% = (valeur / total) × 100
+**Formule :** % = (valeur / total) × 100
 
-**Exemples pratiques :**
-- Votre récolte : 3 tonnes sur 5 prévues = (3/5)×100 = **60%**
-- Augmentation : ancien 100 DT → nouveau 120 DT = +**20%**
-- Réduction : 200 DT avec 15% réduction = 200×0.85 = **170 DT**
+**Exemples :**
+- Récolte : 3t sur 5t prévues = (3/5)×100 = **60%**
+- Augmentation : 100 → 120 DT = **+20%**
+- Réduction : 200 DT avec 15% off = 200×0.85 = **170 DT**
 
-**Calculer une dose à X% :**
-- Engrais à 46% N : pour 100 kg d'azote → 100/0.46 = **217 kg de produit**
+Donnez-moi vos chiffres et je calcule !` },
 
-Donnez-moi vos chiffres et je calcule pour vous !` },
+  // ── Santé ────────────────────────────────────────────────────────
+  { t:'santé médecin maladie symptôme fièvre', r:`🏥 **Santé — Informations générales**
 
-  // ── Santé ──────────────────────────────────────────────────────
-  { t:'santé médecin maladie symptôme fièvre douleur', r:`🏥 **Santé — Informations générales**
-
-Je peux donner des informations générales de santé mais **consultez toujours un médecin** pour votre situation personnelle.
+Je donne des informations générales, mais consultez toujours un médecin.
 
 **Urgences Tunisie :**
 - SAMU : **190**
 - Pompiers : **198**
-- Urgences : **197**
+- Police : **197**
 
-**Symptômes courants :**
-- Fièvre > 38.5°C + 3 jours → Consultez
-- Douleur thoracique → Urgences immédiatement
-- Mal de tête soudain et intense → Urgences
+Posez votre question précise et je vous donnerai des informations générales.` },
 
-**Posez votre question précise** et je vous donnerai des informations générales utiles.` },
+  { t:'nutrition alimentation régime calorie protéine vitamine', r:`🥗 **Nutrition équilibrée**
 
-  { t:'nutrition alimentation régime calorie protéine vitamine', r:`🥗 **Nutrition et alimentation équilibrée**
-
-**Assiette idéale (OMS) :**
+**Assiette idéale :**
 - 50% légumes et fruits
-- 25% féculents (blé, riz, pomme de terre)
-- 25% protéines (viande, poisson, légumineuses)
+- 25% féculents
+- 25% protéines
 
 **Vitamines essentielles :**
-- **Vitamine D** : soleil + poisson gras + œufs
-- **Vitamine C** : agrumes, poivron, persil
-- **Fer** : viande rouge, lentilles, épinards
-- **Calcium** : lait, fromage, sardines
+- D : soleil + poisson gras
+- C : agrumes, poivron
+- Fer : viande, lentilles
 
-**Eau :** minimum 1.5-2 litres par jour, plus en été ou travail physique.
+**Régime méditerranéen** : huile d'olive, légumes, légumineuses, poisson 2x/semaine.` },
 
-**Alimentation méditerranéenne** (reconnue optimale) : huile d'olive, légumes, légumineuses, poisson 2x/semaine.` },
+  // ── Histoire & Géographie ────────────────────────────────────────
+  { t:'tunisie histoire carthage romain arabe islam', r:`📜 **Histoire de Tunisie**
 
-  // ── Histoire & Culture ────────────────────────────────────────
-  { t:'histoire tunisie carthage romain arabe islam', r:`📜 **Histoire de Tunisie — Les grandes périodes**
+- **Carthage** (814-146 av. J.-C.) : empire phénicien, Hannibal contre Rome
+- **Période romaine** : Grenier de Rome, El Jem, Dougga
+- **Conquête arabe** (647-670) : fondation de Kairouan
+- **Ottomans** (1574-1881)
+- **Protectorat français** (1881-1956)
+- **Indépendance** : 20 mars 1956, Habib Bourguiba` },
 
-**Préhistoire** : Hommes de Cro-Magnon au Capsien (12000 av. J.-C.)
+  { t:'géographie afrique monde capitale pays', r:`🌍 **Tunisie — Géographie**
 
-**Carthage** (814-146 av. J.-C.) : fondée par les Phéniciens (Élissa/Didon). Empire méditerranéen, guerre contre Rome (Hannibal !). Détruite en 146 av. J.-C.
-
-**Période romaine** (146 av. J.-C. - 439) : Grenier de Rome, nombreuses villes (El Jem, Dougga, Sbeitla)
-
-**Vandales et Byzantins** (439-647)
-
-**Conquête arabe** (647-670) : Oqba ibn Nafi, fondation de Kairouan (670), 3e ville sainte de l'Islam
-
-**Dynasties berbères** : Aghlabides, Fatimides, Hafsides
-
-**Ottoman** (1574-1881)
-
-**Protectorat français** (1881-1956)
-
-**Indépendance** : 20 mars 1956, Habib Bourguiba premier président` },
-
-  { t:'géographie afrique monde capitale pays continent', r:`🌍 **Géographie**
-
-**Tunisie en chiffres :**
 - Superficie : 163 610 km²
-- Population : ~12 millions d'habitants
-- Capitale : Tunis
-- Frontières : Algérie (ouest), Libye (est-sud), Méditerranée (nord-est)
-- Points extrêmes : Cap Blanc (nord) → Bordj El Khadra (sud)
+- Population : ~12 millions
+- Capitale : **Tunis**
+- Frontières : Algérie (ouest), Libye (est), Méditerranée (nord)
 
 **Régions agricoles :**
-- Nord (Jendouba, Béja) : céréales, élevage
+- Nord (Jendouba, Béja) : céréales
 - Cap Bon (Nabeul) : agrumes, tomates
-- Sahel (Sfax, Sousse) : oliviers
-- Sud (Gafsa, Kébili) : dattes
+- Sahel (Sfax) : oliviers
+- Sud (Gafsa, Kébili) : dattes` },
 
-Posez une question précise sur la géographie et j'expliquerai en détail !` },
+  // ── Cuisine ─────────────────────────────────────────────────────
+  { t:'recette cuisine couscous brik plat tunisien manger', r:`👨‍🍳 **Cuisine tunisienne**
 
-  // ── Cuisine ───────────────────────────────────────────────────
-  { t:'recette cuisine couscous brik méchouia tajine plat tunisien', r:`👨‍🍳 **Cuisine tunisienne**
-
-**Couscous traditionnel (6 personnes) :**
-1. Faire revenir 500g d'agneau + oignons + tomate concentrée + harissa
+**Couscous traditionnel (6 pers.) :**
+1. Faire revenir agneau + oignons + tomate + harissa
 2. Ajouter légumes (carottes, navets, courgettes, pois chiches)
-3. Mouiller avec eau + safran + sel → mijoter 45 min
-4. Cuire la semoule à la vapeur (2 fois × 20 min)
-5. Servir semoule + légumes + sauce à part
+3. Mijoter 45 min
+4. Cuire la semoule à la vapeur 2 × 20 min
+5. Servir avec sauce séparée
 
 **Brik à l'œuf :**
 - Feuille de brik + thon + câpres + persil + 1 œuf
-- Plier en triangle → frire 2 min de chaque côté
+- Plier en triangle → frire 2 min chaque côté
 
-Dites-moi quel plat vous souhaitez et je vous donne la recette complète !` },
+Dites-moi quel plat vous voulez !` },
 
-  // ── Langue & Communication ────────────────────────────────────
+  // ── Finance ─────────────────────────────────────────────────────
+  { t:'crédit banque prêt subvention financement agricole', r:`💰 **Financement agricole Tunisie**
+
+**BNA** (Banque Nationale Agricole) : crédits jusqu'à 500 000 DT, taux 5-7%
+
+**APIA** : subventions jusqu'à **40%** du projet (irrigation, serres, machinerie)
+
+**FOSDAP** : solidarité pour petits agriculteurs
+
+**Documents requis :**
+- Titre foncier / acte de location
+- Plan d'affaires
+- CIN + fiche personnelle
+
+📞 Contactez votre Délégation Régionale de l'Agriculture.` },
+
+  // ── Langue ──────────────────────────────────────────────────────
   { t:'traduction anglais français arabe espagnol langue', r:`🗣️ **Traduction et langues**
 
-Je parle couramment :
-- 🇫🇷 Français
-- 🇬🇧 Anglais
-- 🇸🇦 Arabe (classique et dialectal tunisien)
-- 🇪🇸 Espagnol
-- Et d'autres langues
+Je parle : 🇫🇷 Français · 🇬🇧 Anglais · 🇸🇦 Arabe · 🇪🇸 Espagnol
 
 **Pour une traduction :** écrivez le texte et précisez la langue cible.
 
-Exemple : *"Traduis en anglais : Comment arroser les tomates ?"*
-→ *"How to water tomatoes?"*
-
-Je peux aussi expliquer des expressions idiomatiques ou corriger votre rédaction.` },
-
-  // ── Finance & Droit ───────────────────────────────────────────
-  { t:'crédit banque prêt subvention financement agricole', r:`💰 **Financement agricole en Tunisie**
-
-**Banques spécialisées :**
-- **BNA** (Banque Nationale Agricole) : crédits jusqu'à 500 000 DT, taux préférentiel 5-7%
-- **STB**, **BH** : crédits à moyen terme
-
-**APIA** (Agence de Promotion des Investissements Agricoles) :
-- Subvention jusqu'à **40%** du coût du projet
-- Secteurs : irrigation, serres, stockage froid, machinerie
-
-**FOSDAP** : Fonds de solidarité agricole pour petits agriculteurs
-
-**Documents requis pour un crédit :**
-- Titre foncier ou acte de location
-- Plan d'affaires du projet
-- CIN + fiche personnelle
-
-📞 Contactez votre **Délégation Régionale de l'Agriculture** pour être accompagné.` },
+Exemple : *"Traduis en anglais : Comment irriguer les tomates ?"*
+→ *"How to irrigate tomatoes?"*` },
 ];
 
 /* ════════════════════════════════════════════════════════════════
@@ -336,56 +283,40 @@ Je peux aussi expliquer des expressions idiomatiques ou corriger votre rédactio
 const chercher = (question) => {
   const q = question.toLowerCase().trim();
 
-  // Salutation
   if (/^(bonjour|salam|hello|salut|hi\b|bonsoir|bsr)/i.test(q)) {
-    return `👋 Bonjour ! Je suis votre **Assistant IA NABTA**, propulsé par une base de connaissances avancée.
+    return `👋 Bonjour ! Je suis votre **Assistant IA NABTA**.
 
 Je peux répondre à **toutes vos questions** :
-🌾 Agriculture & élevage
-💻 Technologie & programmation
-🧮 Mathématiques & calculs
-🌍 Histoire & géographie
-👨‍🍳 Cuisine & recettes
-🏥 Santé & nutrition
-💰 Finance & droit
-🗣️ Langues & traduction
+🌾 Agriculture & élevage · 💻 Technologie · 🧮 Mathématiques
+🌍 Histoire & géographie · 👨‍🍳 Cuisine · 🏥 Santé · 💰 Finance
 
 **Posez-moi n'importe quelle question !**`;
   }
 
-  // Qui es-tu
   if (/qui es.tu|c'est quoi|présente.toi|qu'est.ce que/i.test(q)) {
-    return `🌿 Je suis l'**Assistant IA NABTA** — votre compagnon intelligent pour :
+    return `🌿 Je suis l'**Assistant IA NABTA** — votre compagnon intelligent.
 
-- **Agriculture** : cultures, irrigation, maladies, engrais, prix
-- **Tech** : programmation, IA, web
-- **Sciences** : maths, physique, chimie
-- **Culture** : histoire, géographie, cuisine
-- **Santé** : nutrition, symptômes généraux
-- **Finance** : crédits, subventions agricoles
-
-Je réponds en français, arabe, anglais... Dans n'importe quelle langue !
+Je réponds en français, arabe, anglais...
 
 Quelle est votre question ? 😊`;
   }
 
-  // Remerciements
   if (/merci|parfait|super|excellent|bravo|génial|👍/i.test(q)) {
-    return "😊 De rien, c'est avec plaisir ! Avez-vous d'autres questions ? Je suis disponible 24h/24.";
+    return "😊 De rien ! Avez-vous d'autres questions ? Je suis disponible 24h/24.";
   }
 
   // Calcul simple
-  const calcMatch = q.match(/calcul[e]?.*?(\d+[\s×x\*\/\+\-]+\d+)/i) || q.match(/^(\d+\s*[\+\-\*\/×]\s*\d+)/);
+  const calcMatch = q.match(/calcul[e]?.*?(\d+[\s×x*/+-]+\d+)/i) || q.match(/^(\d+\s*[+\-*/×]\s*\d+)/);
   if (calcMatch) {
     try {
-      const expr = calcMatch[1].replace(/×|x/g,'*');
+      const expr = calcMatch[1].replace(/×|x/g, '*');
       // eslint-disable-next-line no-eval
-      const result = eval(expr.replace(/[^0-9+\-*/.\s()]/g,''));
-      if (!isNaN(result)) return `🧮 **Calcul :** ${expr.trim()} = **${result}**\n\nBesoin d'autres calculs ? Je peux aussi résoudre des équations, calculer des surfaces, des doses d'engrais...`;
+      const result = eval(expr.replace(/[^0-9+\-*/.\\s()]/g, ''));
+      if (!isNaN(result)) return `🧮 **Calcul :** ${expr.trim()} = **${result}**\n\nBesoin d'autres calculs ?`;
     } catch {}
   }
 
-  // Recherche dans la KB par mots-clés
+  // Recherche par mots-clés
   let bestScore = 0;
   let bestReponse = null;
   for (const item of KB) {
@@ -395,43 +326,48 @@ Quelle est votre question ? 😊`;
   }
   if (bestScore >= 1) return bestReponse;
 
-  // Réponse par défaut intelligente
-  const premiersMots = q.split(' ').slice(0,5).join(' ');
-  return `💡 J'ai bien reçu votre question sur **"${premiersMots}..."**
+  const premiersMots = q.split(' ').slice(0, 5).join(' ');
+  return `💡 Question sur **"${premiersMots}..."**
 
-Je suis un assistant polyvalent capable de vous aider sur :
-- 🌾 **Agriculture** : cultures, irrigation, maladies, engrais, prix du marché
-- 💻 **Technologie** : programmation, IA, applications
-- 🧮 **Mathématiques** : calculs, géométrie, statistiques
+Je peux vous aider sur :
+- 🌾 **Agriculture** : cultures, irrigation, maladies, engrais
+- 💻 **Technologie** : programmation, IA, web
+- 🧮 **Mathématiques** : calculs, surfaces, doses
 - 🌍 **Culture générale** : histoire, géographie, cuisine
-- 💰 **Finance** : crédits agricoles, subventions
+- 💰 **Finance** : crédits agricoles
 
-Pour une meilleure réponse, **précisez votre question** avec plus de détails. Par exemple :
-- *"Comment traiter la rouille sur mon blé ?"*
-- *"Quel est le prix du blé cette année ?"*
-- *"Comment calculer la surface de ma parcelle ?"*`;
+Précisez votre question pour une meilleure réponse !`;
 };
 
 /* ════════════════════════════════════════════════════════════════
    Formatage Markdown
 ════════════════════════════════════════════════════════════════ */
+const renderInline = (text) => {
+  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith('**') && p.endsWith('**')) return <strong key={i}>{p.slice(2, -2)}</strong>;
+    if (p.startsWith('`')  && p.endsWith('`'))  return <code key={i} style={{ background:'#f3f4f6', padding:'1px 4px', borderRadius:3, fontSize:12, fontFamily:'monospace' }}>{p.slice(1, -1)}</code>;
+    return p;
+  });
+};
+
 const MdText = ({ text }) => (
   <div style={{ fontSize:14, lineHeight:1.7 }}>
-    {(text||'').split('\n').map((line, i) => {
+    {(text || '').split('\n').map((line, i) => {
       if (!line.trim()) return <div key={i} style={{ height:6 }} />;
       if (line.startsWith('### ')) return <p key={i} style={{ margin:'6px 0 3px', fontWeight:700, fontSize:14, color:'#111' }}>{line.slice(4)}</p>;
       if (line.startsWith('## '))  return <p key={i} style={{ margin:'8px 0 4px', fontWeight:700, fontSize:15, color:'#111' }}>{line.slice(3)}</p>;
       if (line.startsWith('# '))   return <p key={i} style={{ margin:'10px 0 5px', fontWeight:700, fontSize:16, color:'#111' }}>{line.slice(2)}</p>;
       if (line.startsWith('- ') || line.startsWith('• ') || line.startsWith('→ ')) {
-        return <p key={i} style={{ margin:'2px 0', paddingLeft:12 }}>{renderInline('• ' + line.replace(/^[-•→]\s/,''))}</p>;
+        return <p key={i} style={{ margin:'2px 0', paddingLeft:12 }}>{renderInline('• ' + line.replace(/^[-•→]\s/, ''))}</p>;
       }
       if (/^\|.*\|$/.test(line)) {
-        if (line.replace(/[\|\s-]/g,'').length === 0) return null;
+        if (line.replace(/[\|\s-]/g, '').length === 0) return null;
         const cells = line.split('|').filter(Boolean).map(c => c.trim());
         return (
           <div key={i} style={{ display:'flex', gap:0, marginBottom:2 }}>
-            {cells.map((c,j) => (
-              <div key={j} style={{ flex:1, padding:'4px 8px', background:i===0?'#f0fdf4':'#fff', borderBottom:'1px solid #e8e8e8', fontSize:12 }}>
+            {cells.map((c, j) => (
+              <div key={j} style={{ flex:1, padding:'4px 8px', background: i === 0 ? '#f0fdf4' : '#fff', borderBottom:'1px solid #e8e8e8', fontSize:12 }}>
                 {renderInline(c)}
               </div>
             ))}
@@ -443,24 +379,18 @@ const MdText = ({ text }) => (
   </div>
 );
 
-const renderInline = (text) => {
-  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
-  return parts.map((p,i) => {
-    if (p.startsWith('**') && p.endsWith('**')) return <strong key={i}>{p.slice(2,-2)}</strong>;
-    if (p.startsWith('`')  && p.endsWith('`'))  return <code key={i} style={{ background:'#f3f4f6', padding:'1px 4px', borderRadius:3, fontSize:12, fontFamily:'monospace' }}>{p.slice(1,-1)}</code>;
-    return p;
-  });
-};
-
 /* ════════════════════════════════════════════════════════════════
-   Composant principal
+   Suggestions rapides
 ════════════════════════════════════════════════════════════════ */
 const SUGGESTIONS = [
   '🌾 Irrigation blé Tunisie', '🫒 Taille des oliviers', '💧 Goutte-à-goutte',
-  '🌿 Traiter le mildiou', '💰 Prix marché 2026', '🤖 C\'est quoi l\'IA ?',
-  '💻 Apprendre Python', '👨‍🍳 Recette couscous', '📅 Calendrier semis',
+  '🌿 Traiter le mildiou',     '💰 Prix marché 2026',    '🤖 C\'est quoi l\'IA ?',
+  '💻 Apprendre Python',       '👨‍🍳 Recette couscous',    '📅 Calendrier semis',
 ];
 
+/* ════════════════════════════════════════════════════════════════
+   COMPOSANT PRINCIPAL — send() utilise la KB locale (pas d'API)
+════════════════════════════════════════════════════════════════ */
 export default function AssistantIA() {
   const { user } = useAuth();
   const key = STORAGE_KEY + (user?.id || 'guest');
@@ -487,29 +417,36 @@ export default function AssistantIA() {
     bottomRef.current?.scrollIntoView({ behavior:'smooth' });
   }, [messages, key]);
 
+  const effacer = () => {
+    const init = [{
+      role:    'assistant',
+      content: 'Conversation effacée. Comment puis-je vous aider ?',
+      time:    new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
+    }];
+    setMessages(init);
+    try { localStorage.setItem(key, JSON.stringify(init)); } catch {}
+  };
+
+  // ✅ send() est une fonction NORMALE (pas async) — utilise KB locale
   const send = (texte = input) => {
     if (!texte.trim() || loading) return;
+
     const time = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
     const withUser = [...messages, { role:'user', content:texte, time }];
     setMessages(withUser);
     setInput('');
     setLoading(true);
 
-    // Délai naturel (300-900ms)
+    // Délai naturel pour simuler la réflexion
     setTimeout(() => {
+      const reponse = chercher(texte);
       setMessages(prev => [...prev, {
         role:    'assistant',
-        content: chercher(texte),
+        content: reponse,
         time:    new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
       }]);
       setLoading(false);
     }, 300 + Math.random() * 600);
-  };
-
-  const effacer = () => {
-    const init = [{ role:'assistant', content:'Conversation effacée. Comment puis-je vous aider ?', time: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) }];
-    setMessages(init);
-    try { localStorage.setItem(key, JSON.stringify(init)); } catch {}
   };
 
   return (
@@ -533,7 +470,7 @@ export default function AssistantIA() {
             <p style={{ margin:0, fontSize:11, opacity:0.65 }}>Agriculture · Technologie · Culture générale · 24h/24</p>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-            <div style={{ width:8, height:8, borderRadius:'50%', background:loading ? '#fbbf24' : '#4ade80', boxShadow:loading?'0 0 6px #fbbf24':'0 0 6px #4ade80' }} />
+            <div style={{ width:8, height:8, borderRadius:'50%', background:loading ? '#fbbf24' : '#4ade80', boxShadow:loading ? '0 0 6px #fbbf24' : '0 0 6px #4ade80' }} />
             <span style={{ fontSize:11, opacity:0.7 }}>{loading ? 'Réflexion...' : 'En ligne'}</span>
           </div>
         </div>
@@ -556,7 +493,7 @@ export default function AssistantIA() {
               </div>
               {msg.role === 'user' && (
                 <div style={{ width:32, height:32, borderRadius:'50%', background:'#1a3a2a', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'#fff', flexShrink:0, alignSelf:'flex-end' }}>
-                  {(user?.nom||'U').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}
+                  {(user?.nom || 'U').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                 </div>
               )}
             </div>
@@ -565,7 +502,9 @@ export default function AssistantIA() {
             <div style={{ display:'flex', gap:8 }}>
               <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#1a3a2a,#2d5a3d)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>🌿</div>
               <div style={{ background:'#f7f8fa', borderRadius:'4px 14px 14px 14px', padding:'12px 16px', display:'flex', gap:5, alignItems:'center' }}>
-                {[0,150,300].map(d => <div key={d} style={{ width:7, height:7, borderRadius:'50%', background:'#aaa', animation:`dotBounce 1s ${d}ms infinite` }} />)}
+                {[0, 150, 300].map(d => (
+                  <div key={d} style={{ width:7, height:7, borderRadius:'50%', background:'#aaa', animation:`dotBounce 1s ${d}ms infinite` }} />
+                ))}
               </div>
             </div>
           )}
@@ -576,7 +515,7 @@ export default function AssistantIA() {
         <div style={{ padding:'8px 14px', borderTop:'1px solid #f0f0f0', display:'flex', gap:6, flexWrap:'wrap' }}>
           {SUGGESTIONS.map(s => (
             <button key={s} onClick={() => send(s)} disabled={loading}
-              style={{ fontSize:11, padding:'4px 11px', borderRadius:14, border:'1px solid #e8e8e8', background:'#f7f8fa', color:'#555', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', transition:'all 0.1s' }}>
+              style={{ fontSize:11, padding:'4px 11px', borderRadius:14, border:'1px solid #e8e8e8', background:'#f7f8fa', color:'#555', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>
               {s}
             </button>
           ))}
@@ -585,13 +524,13 @@ export default function AssistantIA() {
         {/* Saisie */}
         <div style={{ display:'flex', gap:8, padding:'10px 14px', borderTop:'1px solid #f0f0f0' }}>
           <textarea value={input} onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
             placeholder="Posez n'importe quelle question... (Entrée pour envoyer)"
             rows={1} disabled={loading}
             style={{ flex:1, border:'1px solid #e8e8e8', borderRadius:10, padding:'9px 14px', fontSize:14, outline:'none', fontFamily:'inherit', resize:'none', lineHeight:1.5, background:loading?'#f9fafb':'#fff' }}
           />
-          <button onClick={() => send()} disabled={loading||!input.trim()}
-            style={{ background:loading||!input.trim()?'#d1d5db':'#16a34a', color:'#fff', border:'none', borderRadius:10, padding:'9px 20px', fontSize:16, cursor:loading||!input.trim()?'not-allowed':'pointer', alignSelf:'flex-end', transition:'background 0.15s' }}>
+          <button onClick={() => send()} disabled={loading || !input.trim()}
+            style={{ background:loading||!input.trim()?'#d1d5db':'#16a34a', color:'#fff', border:'none', borderRadius:10, padding:'9px 20px', fontSize:16, cursor:loading||!input.trim()?'not-allowed':'pointer', alignSelf:'flex-end' }}>
             ➤
           </button>
         </div>

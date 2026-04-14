@@ -14,6 +14,7 @@ app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001'], crede
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+
 // ── Log toutes les requêtes (debug) ─────────────────────────────────────────
 app.use((req, res, next) => {
   console.log(`${new Date().toLocaleTimeString()} | ${req.method} ${req.path}`);
@@ -21,12 +22,13 @@ app.use((req, res, next) => {
 });
 
 // ── Routes ───────────────────────────────────────────────────────────────────
-app.use('/api/auth',        require('./routes/auth'));
-app.use('/api/users',       require('./routes/users'));
-app.use('/api/produits',    require('./routes/produits'));
-app.use('/api/livraisons',  require('./routes/livraisons'));
-app.use('/api/rapports',    require('./routes/rapports'));
+app.use('/api/auth',        require('./routes/auth'));// ← Authentification
+app.use('/api/users',       require('./routes/users')); // ← Gestion utilisateurs
+app.use('/api/produits',    require('./routes/produits'));// ← Gestion produits agricoles
+app.use('/api/livraisons',  require('./routes/livraisons'));// ← Livraisons et suivi
+app.use('/api/rapports',    require('./routes/rapports')); // ← Rapports de livraison
 app.use('/api/ministere',   require('./routes/ministere')); // ← Ministère Agriculture
+app.use('/api/assistant', require('./routes/assistant'));// ← Assistant IA 
 
 // ── Route de santé ───────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
