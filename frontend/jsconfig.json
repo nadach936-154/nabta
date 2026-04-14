@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "ignoreDeprecations": "6.0",
+    "baseUrl": "src",
+    "jsx": "react-jsx",
+    "checkJs": false,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "build"]
+}
