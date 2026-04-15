@@ -1,11 +1,12 @@
 // src/store/notifications.js
-// Système partagé entre tous les utilisateurs via localStorage
+// ✅ VERSION CORRIGÉE — ajout messageStore pour les contacts
 
 const KEYS = {
   rdv:      'nabta_rdv_v2',
   notifs:   'nabta_notifs_v2',
   commandes:'nabta_commandes_v2',
   produits: 'nabta_produits_v2',
+  messages: 'nabta_messages_v2',   // ✅ NOUVEAU — messages entre utilisateurs
 };
 
 // ─── RDV Store ────────────────────────────────────────────────────────────────
@@ -21,15 +22,18 @@ export const rdvStore = {
     const list = this.getAll();
     const rdv = {
       ...data,
-      id:        'rdv_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-      statut:    'en_attente',
-      createdAt: new Date().toISOString(),
+      // ✅ Normaliser les emails en minuscules pour éviter les bugs de casse
+      vetEmail:   (data.vetEmail   || '').toLowerCase().trim(),
+      agriEmail:  (data.agriEmail  || '').toLowerCase().trim(),
+      id:         'rdv_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      statut:     'en_attente',
+      createdAt:  new Date().toISOString(),
     };
     list.push(rdv);
     this.save(list);
     // Notification pour le vétérinaire
     notifStore.add({
-      pour:    data.vetEmail,
+      pour:    rdv.vetEmail,
       type:    data.urgent ? 'urgence' : 'rdv',
       titre:   data.urgent ? '🚨 CAS URGENT reçu !' : '📅 Nouvelle demande de RDV',
       message: `De ${data.agriNom} — ${data.animal}`,
@@ -38,7 +42,8 @@ export const rdvStore = {
     return rdv;
   },
   pourVet(email) {
-    return this.getAll().filter(r => r.vetEmail === email);
+    const e = (email || '').toLowerCase().trim();
+    return this.getAll().filter(r => r.vetEmail === e);
   },
   update(id, changes) {
     const list = this.getAll().map(r => r.id === id ? { ...r, ...changes } : r);
@@ -59,22 +64,75 @@ export const notifStore = {
     const list = this.getAll();
     list.unshift({
       ...data,
-      id:  'n_' + Date.now(),
-      lu:  false,
-      at:  new Date().toISOString(),
+      pour: (data.pour || '').toLowerCase().trim(), // ✅ lowercase
+      id:   'n_' + Date.now(),
+      lu:   false,
+      at:   new Date().toISOString(),
     });
     this.save(list);
   },
   forUser(email) {
-    return this.getAll().filter(n => n.pour === email);
+    const e = (email || '').toLowerCase().trim();
+    return this.getAll().filter(n => n.pour === e);
   },
   unread(email) {
     return this.forUser(email).filter(n => !n.lu);
   },
   markAllRead(email) {
+    const e = (email || '').toLowerCase().trim();
     const list = this.getAll().map(n =>
-      n.pour === email ? { ...n, lu: true } : n
+      n.pour === e ? { ...n, lu: true } : n
     );
+    this.save(list);
+  },
+};
+
+// ─── Messages entre utilisateurs ──────────────────────────────────────────────
+export const messageStore = {
+  getAll() {
+    try { return JSON.parse(localStorage.getItem(KEYS.messages) || '[]'); }
+    catch { return []; }
+  },
+  save(list) {
+    localStorage.setItem(KEYS.messages, JSON.stringify(list));
+  },
+  envoyer(data) {
+    const list = this.getAll();
+    const msg = {
+      id:          'msg_' + Date.now(),
+      de:          (data.deEmail  || '').toLowerCase().trim(),
+      deNom:       data.deNom    || '',
+      vers:        (data.versEmail|| '').toLowerCase().trim(),
+      versNom:     data.versNom  || '',
+      contenu:     data.contenu  || '',
+      at:          new Date().toISOString(),
+      lu:          false,
+    };
+    list.unshift(msg);
+    this.save(list);
+    // Notification pour le destinataire
+    notifStore.add({
+      pour:    msg.vers,
+      type:    'message',
+      titre:   `✉️ Message de ${msg.deNom}`,
+      message: msg.contenu.slice(0, 80),
+      refId:   msg.id,
+    });
+    return msg;
+  },
+  reçus(email) {
+    const e = (email || '').toLowerCase().trim();
+    return this.getAll().filter(m => m.vers === e);
+  },
+  envoyés(email) {
+    const e = (email || '').toLowerCase().trim();
+    return this.getAll().filter(m => m.de === e);
+  },
+  nonLus(email) {
+    return this.reçus(email).filter(m => !m.lu);
+  },
+  marquerLu(id) {
+    const list = this.getAll().map(m => m.id === id ? { ...m, lu: true } : m);
     this.save(list);
   },
 };
@@ -92,15 +150,16 @@ export const commandeStore = {
     const list = this.getAll();
     const cmd = {
       ...data,
+      vendeurEmail: (data.vendeurEmail  || '').toLowerCase().trim(),
+      acheteurEmail:(data.acheteurEmail || '').toLowerCase().trim(),
       id:     'cmd_' + Date.now(),
       statut: 'en_attente',
       at:     new Date().toISOString(),
     };
     list.unshift(cmd);
     this.save(list);
-    // Notifier le vendeur
     notifStore.add({
-      pour:    data.vendeurEmail,
+      pour:    cmd.vendeurEmail,
       type:    'commande',
       titre:   '🛒 Nouvelle commande reçue !',
       message: `${data.acheteurNom} commande "${data.produitNom}" × ${data.qte}`,
@@ -109,10 +168,12 @@ export const commandeStore = {
     return cmd;
   },
   pourVendeur(email) {
-    return this.getAll().filter(c => c.vendeurEmail === email);
+    const e = (email || '').toLowerCase().trim();
+    return this.getAll().filter(c => c.vendeurEmail === e);
   },
   pourAcheteur(email) {
-    return this.getAll().filter(c => c.acheteurEmail === email);
+    const e = (email || '').toLowerCase().trim();
+    return this.getAll().filter(c => c.acheteurEmail === e);
   },
   update(id, changes) {
     const list = this.getAll().map(c => c.id === id ? { ...c, ...changes } : c);
@@ -120,15 +181,15 @@ export const commandeStore = {
   },
 };
 
-// ─── Produits partagés (publiés par agriculteurs et fournisseurs) ─────────────
+// ─── Produits partagés ────────────────────────────────────────────────────────
 export const produitsStore = {
   DEFAUT: [
-    { id:'p1', nom:'Engrais Bio Premium',     cat:'Engrais',    prix:450,  qte:150, statut:'stock',   vendeurNom:'Fatima Zahra',   vendeurEmail:'fournisseur@nabta.tn', role:'fournisseur', desc:'NPK 15-15-15 certifié bio' },
-    { id:'p2', nom:'Semences de Blé Dur',      cat:'Semences',   prix:320,  qte:45,  statut:'bas',     vendeurNom:'Fatima Zahra',   vendeurEmail:'fournisseur@nabta.tn', role:'fournisseur', desc:'Variété Karim — haut rendement' },
-    { id:'p3', nom:'Pesticide Naturel',         cat:'Protection', prix:280,  qte:0,   statut:'rupture', vendeurNom:'Fatima Zahra',   vendeurEmail:'fournisseur@nabta.tn', role:'fournisseur', desc:'Bio — pucerons et acariens' },
-    { id:'p4', nom:"Système d'Irrigation",     cat:'Équipement', prix:1200, qte:85,  statut:'stock',   vendeurNom:'Fatima Zahra',   vendeurEmail:'fournisseur@nabta.tn', role:'fournisseur', desc:'Kit goutte-à-goutte 1 ha' },
-    { id:'p5', nom:'Maïs Grain — Récolte 2026',cat:'Culture',    prix:12,   qte:500, statut:'stock',   vendeurNom:'Ahmed Bennani',  vendeurEmail:'agriculteur@nabta.tn', role:'agriculteur', desc:'Maïs sec avril 2026' },
-    { id:'p6', nom:'Huile d\'Olive Extra',      cat:'Culture',    prix:18,   qte:200, statut:'stock',   vendeurNom:'Ahmed Bennani',  vendeurEmail:'agriculteur@nabta.tn', role:'agriculteur', desc:'Première pression à froid' },
+    { id:'p1', nom:'Engrais Bio Premium',      cat:'Engrais',    prix:450,  qte:150, statut:'stock',   vendeurNom:'Loujayen Lahmidi',   vendeurEmail:'loujayenfourni@nabta.tn', role:'fournisseur', desc:'NPK 15-15-15 certifié bio' },
+    { id:'p2', nom:'Semences de Blé Dur',       cat:'Semences',   prix:320,  qte:45,  statut:'bas',     vendeurNom:'Loujayen Lahmidi',   vendeurEmail:'loujayenfourni@nabta.tn', role:'fournisseur', desc:'Variété Karim — haut rendement' },
+    { id:'p3', nom:'Pesticide Naturel',          cat:'Protection', prix:280,  qte:0,   statut:'rupture', vendeurNom:'Loujayen Lahmidi',   vendeurEmail:'loujayenfourni@nabta.tn', role:'fournisseur', desc:'Bio — pucerons et acariens' },
+    { id:'p4', nom:"Système d'Irrigation",      cat:'Équipement', prix:1200, qte:85,  statut:'stock',   vendeurNom:'Loujayen Lahmidi',   vendeurEmail:'loujayenfourni@nabta.tn', role:'fournisseur', desc:'Kit goutte-à-goutte 1 ha' },
+    { id:'p5', nom:'Maïs Grain — Récolte 2026', cat:'Culture',    prix:12,   qte:500, statut:'stock',   vendeurNom:'Sarah Majjedi',      vendeurEmail:'sarahagri@nabta.tn',      role:'agriculteur', desc:'Maïs sec avril 2026' },
+    { id:'p6', nom:"Huile d'Olive Extra",        cat:'Culture',    prix:18,   qte:200, statut:'stock',   vendeurNom:'Sarah Majjedi',      vendeurEmail:'sarahagri@nabta.tn',      role:'agriculteur', desc:'Première pression à froid' },
   ],
   getAll() {
     try {
@@ -136,9 +197,7 @@ export const produitsStore = {
       return saved ? JSON.parse(saved) : this.DEFAUT;
     } catch { return this.DEFAUT; }
   },
-  save(list) {
-    localStorage.setItem(KEYS.produits, JSON.stringify(list));
-  },
+  save(list) { localStorage.setItem(KEYS.produits, JSON.stringify(list)); },
   add(produit) {
     const list = this.getAll();
     const nouveau = { ...produit, id: 'p_' + Date.now() };
@@ -147,7 +206,6 @@ export const produitsStore = {
     return nouveau;
   },
   remove(id) {
-    const list = this.getAll().filter(p => p.id !== id);
-    this.save(list);
+    this.save(this.getAll().filter(p => p.id !== id));
   },
 };

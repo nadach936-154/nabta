@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { StatCard, Badge, Card, SectionTitle, Table, PageHeader, Btn } from '../../components/UI';
 import { MOCK_USERS, MOCK_PRODUITS, MOCK_COMMANDES, MOCK_LIVRAISONS } from '../../data/mockData';
-
 const ROLE_COLOR = { admin:'#dc2626', agriculteur:'#16a34a', fournisseur:'#b45309', veterinaire:'#2563eb', transporteur:'#7c3aed' };
 
 /* ═══════════════ DASHBOARD ═══════════════ */
@@ -172,6 +171,7 @@ export function Statistiques() {
     { label:'Jun', val:84, color:'#16a34a' },
   ];
   const maxVal = Math.max(...barData.map(d => d.val));
+
 
   return (
     <div>
