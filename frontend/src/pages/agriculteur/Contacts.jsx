@@ -1,11 +1,12 @@
 // src/pages/agriculteur/Contacts.jsx
 // ✅ CORRECTIONS :
-//   1. ModalContact : fermeture automatique après envoi (onClose appelé)
-//   2. Message sauvegardé dans messageStore (fournisseur peut le voir)
-//   3. Emails normalisés en minuscules pour le RDV
+//   1. Modale se ferme automatiquement après envoi
+//   2. Messages sauvegardés dans messageStore
+//   3. Bouton "📋 Demande" pour fournisseurs + demandeStore
+//   4. Emails normalisés minuscules partout
 import { useState, useEffect } from 'react';
 import { useAuth, usersStore } from '../../context/AuthContext';
-import { rdvStore, messageStore } from '../../store/notifications';
+import { rdvStore, messageStore, demandeStore } from '../../store/notifications';
 
 const FILTRES = [
   { val:'tous',         label:'Tous',         icon:'👥' },
@@ -18,8 +19,10 @@ const RC = {
   fournisseur:  { bg:'#fefce8', c:'#b45309', b:'#fde68a' },
   transporteur: { bg:'#f5f3ff', c:'#7c3aed', b:'#ddd6fe' },
 };
+const inp = { width:'100%', border:'1px solid #e8e8e8', borderRadius:8, padding:'9px 12px', fontSize:14, outline:'none', boxSizing:'border-box', fontFamily:'inherit' };
+const lbl = { display:'block', fontSize:12, fontWeight:600, color:'#555', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.5px' };
 
-/* ── Modal Contact ✅ CORRIGÉ ─────────────────────────────────────────────── */
+/* ── Modal Contact (message simple) ─────────────────────────────────────────*/
 function ModalContact({ pro, sender, onClose }) {
   const [msg,   setMsg]   = useState('');
   const [ok,    setOk]    = useState(false);
@@ -28,26 +31,12 @@ function ModalContact({ pro, sender, onClose }) {
   if (!pro) return null;
 
   const envoyer = () => {
-    if (!msg.trim()) { alert('Écrivez un message avant d\'envoyer.'); return; }
-    if (envoi) return; // éviter double-clic
+    if (!msg.trim()) { alert('Écrivez un message.'); return; }
+    if (envoi) return;
     setEnvoi(true);
-
-    // ✅ Sauvegarder le message — le destinataire peut le lire
-    messageStore.envoyer({
-      deEmail:   sender?.email  || '',
-      deNom:     sender?.nom    || '',
-      versEmail: pro.email,
-      versNom:   pro.nom,
-      contenu:   msg,
-    });
-
+    messageStore.envoyer({ deEmail:sender?.email, deNom:sender?.nom, versEmail:pro.email, versNom:pro.nom, contenu:msg });
     setOk(true);
-    // ✅ Fermer la modale après 2 secondes (au lieu de rester bloquée)
-    setTimeout(() => {
-      setOk(false);
-      setEnvoi(false);
-      onClose(); // ← LA CORRECTION PRINCIPALE
-    }, 2000);
+    setTimeout(() => { setOk(false); setEnvoi(false); onClose(); }, 2000);
   };
 
   return (
@@ -56,8 +45,8 @@ function ModalContact({ pro, sender, onClose }) {
         {ok ? (
           <div style={{ textAlign:'center', padding:'20px 0' }}>
             <div style={{ fontSize:52, marginBottom:10 }}>✅</div>
-            <h3 style={{ color:'#16a34a', margin:'0 0 6px' }}>Message envoyé !</h3>
-            <p style={{ color:'#888', fontSize:13 }}>{pro.nom} a été notifié(e). Fermeture...</p>
+            <h3 style={{ color:'#16a34a', margin:0 }}>Message envoyé !</h3>
+            <p style={{ color:'#888', fontSize:13, marginTop:6 }}>Fermeture...</p>
           </div>
         ) : (
           <>
@@ -71,33 +60,20 @@ function ModalContact({ pro, sender, onClose }) {
                   <span style={{ fontSize:11, padding:'2px 8px', borderRadius:10, background:rc.bg, color:rc.c, fontWeight:600, textTransform:'capitalize' }}>{pro.role}</span>
                 </div>
               </div>
-              <button onClick={onClose} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#aaa', lineHeight:1 }}>×</button>
+              <button onClick={onClose} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#aaa' }}>×</button>
             </div>
-
             <div style={{ background:'#f7f8fa', borderRadius:9, padding:'10px 14px', marginBottom:14, fontSize:13 }}>
               {pro.telephone && <p style={{ margin:'0 0 3px' }}>📞 <strong>{pro.telephone}</strong></p>}
               <p style={{ margin:'0 0 3px' }}>📧 {pro.email}</p>
               {pro.adresse && <p style={{ margin:0 }}>📍 {pro.adresse}</p>}
             </div>
-
-            <label style={{ display:'block', fontSize:12, fontWeight:600, color:'#555', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.5px' }}>
-              Votre message
-            </label>
-            <textarea
-              value={msg} onChange={e => setMsg(e.target.value)} rows={4}
-              placeholder={`Bonjour ${(pro.nom||'').split(' ')[0]}, je souhaite...`}
-              style={{ width:'100%', border:'1px solid #e8e8e8', borderRadius:8, padding:'9px 12px', fontSize:14, outline:'none', resize:'vertical', fontFamily:'inherit', boxSizing:'border-box', marginBottom:14 }}
-            />
-
+            <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={4}
+              placeholder={`Bonjour ${(pro.nom||'').split(' ')[0]}...`}
+              style={{ ...inp, resize:'vertical', marginBottom:14 }} />
             <div style={{ display:'flex', gap:8 }}>
-              {pro.telephone && (
-                <a href={`tel:${pro.telephone}`}
-                  style={{ flex:1, background:rc.bg, color:rc.c, borderRadius:8, padding:'9px', fontSize:13, fontWeight:600, textDecoration:'none', textAlign:'center' }}>
-                  📞 Appeler
-                </a>
-              )}
+              {pro.telephone && <a href={`tel:${pro.telephone}`} style={{ flex:1, background:rc.bg, color:rc.c, borderRadius:8, padding:'9px', fontSize:13, fontWeight:600, textDecoration:'none', textAlign:'center' }}>📞 Appeler</a>}
               <button onClick={envoyer} disabled={envoi}
-                style={{ flex:2, background:envoi?'#86a886':'#16a34a', color:'#fff', border:'none', borderRadius:8, padding:'9px', fontSize:13, fontWeight:700, cursor:envoi?'not-allowed':'pointer', fontFamily:'inherit' }}>
+                style={{ flex:2, background:envoi?'#86a886':'#16a34a', color:'#fff', border:'none', borderRadius:8, padding:'9px', fontSize:13, fontWeight:700, cursor:envoi?'not-allowed':'pointer' }}>
                 {envoi ? '⏳ Envoi...' : '✉️ Envoyer'}
               </button>
             </div>
@@ -108,121 +84,80 @@ function ModalContact({ pro, sender, onClose }) {
   );
 }
 
-/* ── Modal RDV ✅ CORRIGÉ ─────────────────────────────────────────────────── */
-function ModalRDV({ vet, user, onClose }) {
-  const [form,   setForm]   = useState({ animal:'', description:'', date:'', urgent:false });
+/* ── Modal Demande Fournisseur ✅ NOUVEAU ────────────────────────────────────*/
+function ModalDemande({ four, user, onClose }) {
+  const [form,   setForm]   = useState({ objet:'', message:'' });
   const [ok,     setOk]     = useState(false);
   const [envoi,  setEnvoi]  = useState(false);
   const [erreur, setErreur] = useState('');
-  if (!vet) return null;
+  if (!four) return null;
 
   const envoyer = () => {
-    if (!form.animal || !form.description || !form.date) {
-      setErreur('Tous les champs sont obligatoires.');
-      return;
-    }
+    if (!form.objet.trim() || !form.message.trim()) { setErreur('Remplissez l\'objet et le message.'); return; }
     if (envoi) return;
     setErreur('');
     setEnvoi(true);
-
-    // ✅ Email vétérinaire normalisé en minuscules
-    rdvStore.envoyer({
-      vetEmail:    vet.email.toLowerCase().trim(),
-      vetNom:      vet.nom,
-      agriEmail:   (user?.email       || '').toLowerCase().trim(),
-      agriNom:     user?.nom          || '',
-      agriTel:     user?.telephone    || '',
-      agriAdresse: user?.adresse      || '',
-      animal:      form.animal,
-      description: form.description,
-      date:        form.date,
-      urgent:      form.urgent,
+    demandeStore.envoyer({
+      fourEmail:      four.email,
+      fourNom:        four.nom,
+      demandeurEmail: user?.email  || '',
+      demandeurNom:   user?.nom    || '',
+      demandeurTel:   user?.telephone || '',
+      demandeurAdr:   user?.adresse   || '',
+      objet:   form.objet,
+      message: form.message,
     });
-
     setOk(true);
-    // ✅ Fermer après 2.5s
-    setTimeout(() => {
-      setOk(false);
-      setEnvoi(false);
-      onClose();
-    }, 2500);
-  };
-
-  const inp = {
-    width:'100%', border:'1px solid #e8e8e8', borderRadius:8,
-    padding:'9px 12px', fontSize:14, outline:'none',
-    boxSizing:'border-box', fontFamily:'inherit',
-  };
-  const lbl = {
-    display:'block', fontSize:12, fontWeight:600, color:'#555',
-    marginBottom:4, textTransform:'uppercase', letterSpacing:'0.5px',
+    setTimeout(() => { setOk(false); setEnvoi(false); onClose(); }, 2200);
   };
 
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
-      <div style={{ background:'#fff', borderRadius:16, padding:28, maxWidth:480, width:'90%', maxHeight:'90vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.15)' }}>
+      <div style={{ background:'#fff', borderRadius:16, padding:28, maxWidth:480, width:'90%', boxShadow:'0 20px 60px rgba(0,0,0,0.15)' }}>
         {ok ? (
           <div style={{ textAlign:'center', padding:'30px 0' }}>
-            <div style={{ fontSize:52, marginBottom:12 }}>{form.urgent ? '🚨' : '📅'}</div>
-            <h3 style={{ color:form.urgent?'#dc2626':'#16a34a', margin:'0 0 8px', fontSize:20 }}>
-              {form.urgent ? 'Urgence envoyée !' : 'Demande envoyée !'}
-            </h3>
-            <p style={{ color:'#888', fontSize:14 }}>
-              {vet.nom} va recevoir votre demande dans son tableau de bord. Fermeture...
-            </p>
+            <div style={{ fontSize:52, marginBottom:12 }}>📋</div>
+            <h3 style={{ color:'#b45309', margin:'0 0 8px', fontSize:20 }}>Demande envoyée !</h3>
+            <p style={{ color:'#888', fontSize:14 }}>{four.nom} va recevoir votre demande. Fermeture...</p>
           </div>
         ) : (
           <>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:16 }}>
               <div>
-                <h3 style={{ margin:'0 0 3px', fontSize:17, fontWeight:700 }}>📅 Rendez-vous vétérinaire</h3>
-                <p style={{ margin:0, fontSize:13, color:'#888' }}>{vet.nom} · {vet.adresse || vet.email}</p>
+                <h3 style={{ margin:'0 0 3px', fontSize:17, fontWeight:700 }}>📋 Envoyer une demande</h3>
+                <p style={{ margin:0, fontSize:13, color:'#888' }}>{four.nom} · {four.adresse}</p>
               </div>
               <button onClick={onClose} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#aaa' }}>×</button>
             </div>
 
-            {/* Bouton urgence */}
-            <button onClick={() => setForm(f => ({ ...f, urgent:!f.urgent }))}
-              style={{ width:'100%', padding:11, borderRadius:10, marginBottom:14, border:form.urgent?'none':'2px dashed #fca5a5', background:form.urgent?'#dc2626':'#fff5f5', color:form.urgent?'#fff':'#dc2626', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s' }}>
-              {form.urgent ? '🚨 CAS URGENT ACTIVÉ — Cliquer pour annuler' : '⚠️ Signaler comme cas urgent'}
-            </button>
+            <div style={{ background:'#fefce8', border:'1px solid #fde68a', borderRadius:9, padding:'10px 14px', marginBottom:14, fontSize:13 }}>
+              <p style={{ margin:'0 0 2px', fontWeight:600 }}>{four.nom}</p>
+              {four.telephone && <p style={{ margin:'0 0 2px', color:'#666' }}>📞 {four.telephone}</p>}
+              <p style={{ margin:0, color:'#666' }}>📧 {four.email}</p>
+            </div>
 
-            {erreur && (
-              <div style={{ background:'#fff3cd', border:'1px solid #ffc107', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:13, color:'#856404' }}>
-                ⚠️ {erreur}
-              </div>
-            )}
+            {erreur && <div style={{ background:'#fff3cd', border:'1px solid #ffc107', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:13, color:'#856404' }}>⚠️ {erreur}</div>}
 
             <div style={{ display:'grid', gap:12 }}>
               <div>
-                <label style={lbl}>Animal / Espèce *</label>
-                <input style={inp} value={form.animal}
-                  onChange={e => setForm(f=>({...f,animal:e.target.value}))}
-                  placeholder="Vache laitière, Troupeau de 15 moutons..." />
+                <label style={lbl}>Objet de la demande *</label>
+                <input style={inp} value={form.objet} onChange={e => setForm(f=>({...f,objet:e.target.value}))}
+                  placeholder="Ex: Commande d'engrais, Partenariat, Devis..." />
               </div>
               <div>
-                <label style={lbl}>Date souhaitée *</label>
-                <input style={inp} type="date" value={form.date}
-                  onChange={e => setForm(f=>({...f,date:e.target.value}))} />
-              </div>
-              <div>
-                <label style={lbl}>Description des symptômes *</label>
-                <textarea style={{ ...inp, resize:'vertical' }} rows={4}
-                  value={form.description}
-                  onChange={e => setForm(f=>({...f,description:e.target.value}))}
-                  placeholder="Symptômes observés, durée, température, comportement..." />
+                <label style={lbl}>Message *</label>
+                <textarea style={{ ...inp, resize:'vertical' }} rows={5}
+                  value={form.message} onChange={e => setForm(f=>({...f,message:e.target.value}))}
+                  placeholder="Détaillez votre demande : quantités, délais, conditions..." />
               </div>
             </div>
 
             <div style={{ display:'flex', gap:10, marginTop:18 }}>
               <button onClick={envoyer} disabled={envoi}
-                style={{ flex:1, background:envoi?'#888':(form.urgent?'#dc2626':'#16a34a'), color:'#fff', border:'none', borderRadius:9, padding:12, fontSize:14, fontWeight:700, cursor:envoi?'not-allowed':'pointer' }}>
-                {envoi ? '⏳ Envoi...' : (form.urgent ? '🚨 Envoyer urgence' : '📅 Envoyer la demande')}
+                style={{ flex:1, background:envoi?'#888':'#b45309', color:'#fff', border:'none', borderRadius:9, padding:12, fontSize:14, fontWeight:700, cursor:envoi?'not-allowed':'pointer' }}>
+                {envoi ? '⏳ Envoi...' : '📋 Envoyer la demande'}
               </button>
-              <button onClick={onClose}
-                style={{ padding:'12px 16px', border:'1px solid #e8e8e8', borderRadius:9, background:'#fff', fontSize:13, cursor:'pointer' }}>
-                Annuler
-              </button>
+              <button onClick={onClose} style={{ padding:'12px 16px', border:'1px solid #e8e8e8', borderRadius:9, background:'#fff', fontSize:13, cursor:'pointer' }}>Annuler</button>
             </div>
           </>
         )}
@@ -231,16 +166,91 @@ function ModalRDV({ vet, user, onClose }) {
   );
 }
 
-/* ── Carte professionnel ──────────────────────────────────────────────────── */
-function CardPro({ pro, onContact, onRdv }) {
-  const rc = RC[pro.role] || { bg:'#f3f4f6', c:'#555', b:'#e5e7eb' };
-  const initiales = (pro.nom||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
-  const roleIcon  = { veterinaire:'🐄', fournisseur:'🏪', transporteur:'🚚' }[pro.role] || '👤';
+/* ── Modal RDV Vétérinaire ───────────────────────────────────────────────────*/
+function ModalRDV({ vet, user, onClose }) {
+  const [form, setForm] = useState({ animal:'', description:'', date:'', urgent:false });
+  const [ok,   setOk]   = useState(false);
+  const [envoi,setEnvoi]= useState(false);
+  const [err,  setErr]  = useState('');
+  if (!vet) return null;
+
+  const envoyer = () => {
+    if (!form.animal || !form.description || !form.date) { setErr('Tous les champs sont obligatoires.'); return; }
+    if (envoi) return;
+    setErr('');
+    setEnvoi(true);
+    rdvStore.envoyer({
+      vetEmail:    vet.email.toLowerCase().trim(),
+      vetNom:      vet.nom,
+      agriEmail:   (user?.email||'').toLowerCase().trim(),
+      agriNom:     user?.nom    || '',
+      agriTel:     user?.telephone || '',
+      agriAdresse: user?.adresse   || '',
+      animal:      form.animal,
+      description: form.description,
+      date:        form.date,
+      urgent:      form.urgent,
+    });
+    setOk(true);
+    setTimeout(() => { setOk(false); setEnvoi(false); onClose(); }, 2500);
+  };
 
   return (
-    <div style={{ background:'#fff', border:`1px solid ${rc.b}`, borderRadius:14, padding:'18px', transition:'all 0.15s', cursor:'default' }}
-      onMouseEnter={e => { e.currentTarget.style.boxShadow='0 4px 18px rgba(0,0,0,0.1)'; e.currentTarget.style.transform='translateY(-2px)'; }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='none'; }}>
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
+      <div style={{ background:'#fff', borderRadius:16, padding:28, maxWidth:480, width:'90%', maxHeight:'90vh', overflowY:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.15)' }}>
+        {ok ? (
+          <div style={{ textAlign:'center', padding:'30px 0' }}>
+            <div style={{ fontSize:52, marginBottom:12 }}>{form.urgent?'🚨':'📅'}</div>
+            <h3 style={{ color:form.urgent?'#dc2626':'#16a34a', margin:'0 0 8px', fontSize:20 }}>
+              {form.urgent ? 'Urgence envoyée !' : 'Demande envoyée !'}
+            </h3>
+            <p style={{ color:'#888', fontSize:14 }}>{vet.nom} va recevoir votre demande. Fermeture...</p>
+          </div>
+        ) : (
+          <>
+            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:16 }}>
+              <div>
+                <h3 style={{ margin:'0 0 3px', fontSize:17, fontWeight:700 }}>📅 Rendez-vous vétérinaire</h3>
+                <p style={{ margin:0, fontSize:13, color:'#888' }}>{vet.nom} · {vet.adresse||vet.email}</p>
+              </div>
+              <button onClick={onClose} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#aaa' }}>×</button>
+            </div>
+            <button onClick={() => setForm(f=>({...f,urgent:!f.urgent}))}
+              style={{ width:'100%', padding:11, borderRadius:10, marginBottom:14, border:form.urgent?'none':'2px dashed #fca5a5', background:form.urgent?'#dc2626':'#fff5f5', color:form.urgent?'#fff':'#dc2626', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+              {form.urgent ? '🚨 CAS URGENT ACTIVÉ — Cliquer pour annuler' : '⚠️ Signaler comme cas urgent'}
+            </button>
+            {err && <div style={{ background:'#fff3cd', border:'1px solid #ffc107', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:13, color:'#856404' }}>⚠️ {err}</div>}
+            <div style={{ display:'grid', gap:12 }}>
+              <div><label style={lbl}>Animal / Espèce *</label><input style={inp} value={form.animal} onChange={e => setForm(f=>({...f,animal:e.target.value}))} placeholder="Vache laitière, Troupeau..." /></div>
+              <div><label style={lbl}>Date souhaitée *</label><input style={inp} type="date" value={form.date} onChange={e => setForm(f=>({...f,date:e.target.value}))} /></div>
+              <div>
+                <label style={lbl}>Description des symptômes *</label>
+                <textarea style={{ ...inp, resize:'vertical' }} rows={4} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} placeholder="Symptômes, durée, température..." />
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:10, marginTop:18 }}>
+              <button onClick={envoyer} disabled={envoi}
+                style={{ flex:1, background:envoi?'#888':(form.urgent?'#dc2626':'#16a34a'), color:'#fff', border:'none', borderRadius:9, padding:12, fontSize:14, fontWeight:700, cursor:envoi?'not-allowed':'pointer' }}>
+                {envoi ? '⏳...' : (form.urgent ? '🚨 Envoyer urgence' : '📅 Envoyer la demande')}
+              </button>
+              <button onClick={onClose} style={{ padding:'12px 16px', border:'1px solid #e8e8e8', borderRadius:9, background:'#fff', fontSize:13, cursor:'pointer' }}>Annuler</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Carte pro ───────────────────────────────────────────────────────────────*/
+function CardPro({ pro, onContact, onRdv, onDemande }) {
+  const rc       = RC[pro.role] || { bg:'#f3f4f6', c:'#555', b:'#e5e7eb' };
+  const initiales= (pro.nom||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  const roleIcon = { veterinaire:'🐄', fournisseur:'🏪', transporteur:'🚚' }[pro.role] || '👤';
+  return (
+    <div style={{ background:'#fff', border:`1px solid ${rc.b}`, borderRadius:14, padding:'18px', transition:'all 0.15s' }}
+      onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 4px 18px rgba(0,0,0,0.1)';e.currentTarget.style.transform='translateY(-2px)';}}
+      onMouseLeave={e=>{e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none';}}>
       <div style={{ display:'flex', gap:12, marginBottom:12 }}>
         <div style={{ width:48, height:48, borderRadius:'50%', background:rc.bg, color:rc.c, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:16, border:`2px solid ${rc.b}`, flexShrink:0, position:'relative' }}>
           {initiales}
@@ -248,27 +258,31 @@ function CardPro({ pro, onContact, onRdv }) {
         </div>
         <div style={{ flex:1, minWidth:0 }}>
           <p style={{ margin:'0 0 4px', fontWeight:700, fontSize:14, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pro.nom}</p>
-          <span style={{ fontSize:11, padding:'2px 9px', borderRadius:10, background:rc.bg, color:rc.c, fontWeight:600, textTransform:'capitalize' }}>
-            {pro.role}
-          </span>
+          <span style={{ fontSize:11, padding:'2px 9px', borderRadius:10, background:rc.bg, color:rc.c, fontWeight:600, textTransform:'capitalize' }}>{pro.role}</span>
         </div>
       </div>
-
       <div style={{ fontSize:13, color:'#666', marginBottom:14 }}>
-        {pro.telephone && <p style={{ margin:'0 0 4px', display:'flex', gap:5 }}>📞 <span>{pro.telephone}</span></p>}
-        {pro.adresse   && <p style={{ margin:'0 0 4px', display:'flex', gap:5 }}>📍 <span>{pro.adresse}</span></p>}
-        <p style={{ margin:0, fontSize:11, color:'#aaa', display:'flex', gap:5 }}>✉️ <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pro.email}</span></p>
+        {pro.telephone && <p style={{ margin:'0 0 4px' }}>📞 {pro.telephone}</p>}
+        {pro.adresse   && <p style={{ margin:'0 0 4px' }}>📍 {pro.adresse}</p>}
+        <p style={{ margin:0, fontSize:11, color:'#aaa', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>✉️ {pro.email}</p>
       </div>
-
-      <div style={{ display:'flex', gap:7 }}>
+      <div style={{ display:'flex', gap:7, flexWrap:'wrap' }}>
         <button onClick={() => onContact(pro)}
           style={{ flex:1, padding:'7px', borderRadius:8, border:`1px solid ${rc.b}`, background:rc.bg, color:rc.c, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
-          ✉️ Contacter
+          ✉️ Message
         </button>
+        {/* ✅ Bouton RDV pour vétérinaire */}
         {pro.role === 'veterinaire' && (
           <button onClick={() => onRdv(pro)}
             style={{ flex:1, padding:'7px', borderRadius:8, border:'none', background:'#16a34a', color:'#fff', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
-            📅 Rendez-vous
+            📅 RDV
+          </button>
+        )}
+        {/* ✅ NOUVEAU : Bouton Demande pour fournisseur */}
+        {pro.role === 'fournisseur' && (
+          <button onClick={() => onDemande(pro)}
+            style={{ flex:1, padding:'7px', borderRadius:8, border:'none', background:'#b45309', color:'#fff', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+            📋 Demande
           </button>
         )}
       </div>
@@ -276,21 +290,21 @@ function CardPro({ pro, onContact, onRdv }) {
   );
 }
 
-/* ── Page principale ─────────────────────────────────────────────────────── */
+/* ── Page principale ─────────────────────────────────────────────────────────*/
 export default function Contacts() {
   const { user }  = useAuth();
   const [filtre,   setFiltre]   = useState('tous');
   const [search,   setSearch]   = useState('');
   const [contact,  setContact]  = useState(null);
   const [rdvVet,   setRdvVet]   = useState(null);
+  const [demFour,  setDemFour]  = useState(null); // ✅ NOUVEAU
   const [allUsers, setAllUsers] = useState([]);
 
   useEffect(() => {
     const charger = () => setAllUsers(usersStore.getAll());
     charger();
-    const handler = () => charger();
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
+    window.addEventListener('storage', charger);
+    return () => window.removeEventListener('storage', charger);
   }, []);
 
   const pros = allUsers
@@ -300,11 +314,7 @@ export default function Contacts() {
     .filter(u => {
       const okRole   = filtre === 'tous' || u.role === filtre;
       const term     = search.toLowerCase();
-      const okSearch = !search ||
-        (u.nom||'').toLowerCase().includes(term) ||
-        (u.telephone||'').includes(term) ||
-        (u.adresse||'').toLowerCase().includes(term) ||
-        (u.email||'').toLowerCase().includes(term);
+      const okSearch = !search || (u.nom||'').toLowerCase().includes(term) || (u.telephone||'').includes(term) || (u.adresse||'').toLowerCase().includes(term) || (u.email||'').toLowerCase().includes(term);
       return okRole && okSearch;
     });
 
@@ -320,14 +330,12 @@ export default function Contacts() {
         <h2 style={{ fontSize:22, fontWeight:700, margin:'0 0 3px', color:'#111' }}>📞 Contacts Professionnels</h2>
         <p style={{ color:'#888', margin:0, fontSize:14 }}>Trouvez et contactez les professionnels agricoles</p>
       </div>
-
-      {/* Stats */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
         {[['🐄','Vétérinaires',stats.veterinaire,'#eff6ff','#2563eb','veterinaire'],
           ['🏪','Fournisseurs',stats.fournisseur,'#fefce8','#b45309','fournisseur'],
           ['🚚','Transporteurs',stats.transporteur,'#f5f3ff','#7c3aed','transporteur']].map(([icon,label,count,bg,color,val]) => (
           <div key={label} style={{ background:bg, borderRadius:10, padding:'12px 16px', display:'flex', gap:10, alignItems:'center', cursor:'pointer' }}
-            onClick={() => setFiltre(f => f === val ? 'tous' : val)}>
+            onClick={() => setFiltre(f => f===val ? 'tous' : val)}>
             <span style={{ fontSize:22 }}>{icon}</span>
             <div>
               <p style={{ margin:0, fontSize:20, fontWeight:800, color }}>{count}</p>
@@ -336,49 +344,37 @@ export default function Contacts() {
           </div>
         ))}
       </div>
-
-      {/* Recherche */}
-      <div style={{ display:'flex', alignItems:'center', gap:8, background:'#fff', border:'1px solid #e8e8e8', borderRadius:10, padding:'9px 16px', marginBottom:14, boxShadow:'0 1px 4px rgba(0,0,0,0.04)' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, background:'#fff', border:'1px solid #e8e8e8', borderRadius:10, padding:'9px 16px', marginBottom:14 }}>
         <span style={{ fontSize:16, color:'#888' }}>🔍</span>
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Nom, téléphone, ville, email..."
-          style={{ border:'none', outline:'none', fontSize:14, width:'100%', fontFamily:'inherit', color:'#111' }} />
-        {search && (
-          <button onClick={() => setSearch('')} style={{ background:'none', border:'none', cursor:'pointer', color:'#aaa', fontSize:18, lineHeight:1 }}>×</button>
-        )}
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Nom, téléphone, ville, email..."
+          style={{ border:'none', outline:'none', fontSize:14, width:'100%', fontFamily:'inherit' }} />
+        {search && <button onClick={() => setSearch('')} style={{ background:'none', border:'none', cursor:'pointer', color:'#aaa', fontSize:18 }}>×</button>}
       </div>
-
-      {/* Filtres */}
       <div style={{ display:'flex', gap:8, marginBottom:22, flexWrap:'wrap', alignItems:'center' }}>
         {FILTRES.map(f => (
           <button key={f.val} onClick={() => setFiltre(f.val)}
-            style={{ padding:'7px 16px', borderRadius:20, fontSize:13, cursor:'pointer', fontFamily:'inherit', border:filtre===f.val?'none':'1px solid #e8e8e8', background:filtre===f.val?'#16a34a':'#fff', color:filtre===f.val?'#fff':'#555', fontWeight:filtre===f.val?600:400, transition:'all 0.12s' }}>
+            style={{ padding:'7px 16px', borderRadius:20, fontSize:13, cursor:'pointer', fontFamily:'inherit', border:filtre===f.val?'none':'1px solid #e8e8e8', background:filtre===f.val?'#16a34a':'#fff', color:filtre===f.val?'#fff':'#555', fontWeight:filtre===f.val?600:400 }}>
             {f.icon} {f.label}
           </button>
         ))}
-        <span style={{ marginLeft:'auto', fontSize:13, color:'#888' }}>
-          {pros.length} professionnel(s) trouvé(s)
-        </span>
+        <span style={{ marginLeft:'auto', fontSize:13, color:'#888' }}>{pros.length} professionnel(s)</span>
       </div>
-
-      {/* Grille */}
       {pros.length === 0 ? (
-        <div style={{ textAlign:'center', padding:'60px 24px', color:'#aaa' }}>
-          <p style={{ fontSize:48, margin:'0 0 14px' }}>🔍</p>
-          <p style={{ fontSize:15, fontWeight:600, color:'#555', margin:'0 0 6px' }}>Aucun professionnel trouvé</p>
-          <p style={{ fontSize:13 }}>{search ? 'Modifiez votre recherche' : 'Invitez des professionnels à rejoindre NABTA'}</p>
+        <div style={{ textAlign:'center', padding:60, color:'#aaa' }}>
+          <p style={{ fontSize:48 }}>🔍</p>
+          <p style={{ fontWeight:600, color:'#555' }}>Aucun professionnel trouvé</p>
         </div>
       ) : (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(270px, 1fr))', gap:14 }}>
           {pros.map((pro, i) => (
-            <CardPro key={pro.id || pro.email || i} pro={pro} onContact={setContact} onRdv={setRdvVet} />
+            <CardPro key={pro.id||pro.email||i} pro={pro}
+              onContact={setContact} onRdv={setRdvVet} onDemande={setDemFour} />
           ))}
         </div>
       )}
-
-      {/* ✅ sender={user} passé à ModalContact pour sauvegarder l'expéditeur */}
       {contact && <ModalContact pro={contact} sender={user} onClose={() => setContact(null)} />}
       {rdvVet  && <ModalRDV     vet={rdvVet}  user={user}   onClose={() => setRdvVet(null)} />}
+      {demFour && <ModalDemande four={demFour} user={user}  onClose={() => setDemFour(null)} />}
     </div>
   );
 }
