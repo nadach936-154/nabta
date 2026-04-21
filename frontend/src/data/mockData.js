@@ -20,28 +20,28 @@ export const LISTE_CIN_MINISTERE = {
 export const MOCK_USERS = [
   {
     id:11, nom:'Sarah Majjedi',
-    email:'sarahagri@nabta.tn',           // ✅ minuscules
+    email:'sarahagri@nabta.tn',           
     motDePasse:'sarra936154',
     role:'agriculteur',
     telephone:'+216 29 544 745', adresse:'Tunis, Ariana', actif:true, cin:'15226371',
   },
   {
     id:12, nom:'Loujayen Lahmidi',
-    email:'loujayenfourni@nabta.tn',       // ✅ minuscules
+    email:'loujayenfourni@nabta.tn',       
     motDePasse:'loujayen936154',
     role:'fournisseur',
     telephone:'+216 21 869 285', adresse:'Sousse', actif:true, cin:'12080971',
   },
   {
     id:13, nom:'Dr. Chourouk Weslati',
-    email:'chouroukveteri@nabta.tn',       // ✅ CORRIGÉ — était Chouroukveteri (majuscule)
+    email:'chouroukveteri@nabta.tn',      
     motDePasse:'Chourouk123456',
     role:'veterinaire',
     telephone:'+216 22 955 496', adresse:'Nabeul', actif:true, cin:'10085090',
   },
   {
     id:14, nom:'Amani Aslouje',
-    email:'amanitrans@nabta.tn',           // ✅ CORRIGÉ — était Amanitrans (majuscule)
+    email:'amanitrans@nabta.tn',           
     motDePasse:'Amani154936',
     role:'transporteur',
     telephone:'+216 54 571 037', adresse:'Sfax', actif:true, cin:'45678901',

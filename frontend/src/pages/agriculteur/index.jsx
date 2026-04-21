@@ -251,7 +251,7 @@ export function LivraisonAgriculteur() {
               <div style={{ width:36, height:36, borderRadius:8, background:'#f0fdf4', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>📦</div>
               <div>
                 <p style={{ margin:0, fontSize:13, fontWeight:600 }}>{c.produit}</p>
-                <p style={{ margin:'2px 0 0', fontSize:12, color:'#888' }}>🏪 {c.fournisseur} · Qté: {c.qte} · 📍 {c.adresse}</p>
+                <p style={{ margin:'2px 0 0', fontSize:12, color:'#888' }}> {c.fournisseur} · Qté: {c.qte} · 📍 {c.adresse}</p>
               </div>
             </div>
             <div style={{ textAlign:'right' }}>

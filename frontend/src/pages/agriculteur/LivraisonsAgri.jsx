@@ -34,7 +34,7 @@ export default function LivraisonsAgri() {
 
   return (
     <div>
-      <h2 style={{ color: '#2d6a4f', fontWeight: 600, marginBottom: 24 }}>📦 Mes Commandes</h2>
+      <h2 style={{ color: '#2d6a4f', fontWeight: 600, marginBottom: 24 }}> Mes Commandes</h2>
 
       {/* Stats */}
       <Row className="g-3 mb-4">
@@ -58,7 +58,7 @@ export default function LivraisonsAgri() {
         <div className="text-center py-5"><div className="spinner-border text-success"/></div>
       ) : livraisons.length === 0 ? (
         <div className="text-center py-5 text-muted">
-          <p style={{ fontSize: 48 }}>📦</p><p>Aucune commande pour l'instant.</p>
+          <p style={{ fontSize: 48 }}>=</p><p>Aucune commande pour l'instant.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -116,7 +116,7 @@ export default function LivraisonsAgri() {
 
       {/* Modal détail */}
       <Modal show={!!detail} onHide={() => setDetail(null)} centered>
-        <Modal.Header closeButton><Modal.Title>📦 Détail commande</Modal.Title></Modal.Header>
+        <Modal.Header closeButton><Modal.Title> Détail commande</Modal.Title></Modal.Header>
         <Modal.Body>
           {detail && (
             <Table borderless size="sm">

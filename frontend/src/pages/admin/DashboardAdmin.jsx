@@ -33,7 +33,7 @@ export default function DashboardAdmin() {
   return (
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px', color: '#111' }}>
-        Administration NABTA ⚙️
+        Administration NABTA — Bienvenue {user?.nom || 'Admin'}!
       </h2>
       <p style={{ color: '#888', margin: '0 0 24px', fontSize: 14 }}>Supervision globale de la plateforme</p>
 

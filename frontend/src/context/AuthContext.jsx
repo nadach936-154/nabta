@@ -1,50 +1,84 @@
 // src/context/AuthContext.jsx
-// Les nouveaux inscrits sont sauvegardés dans localStorage ET envoyés au backend
+// ✅ Corrections BUG 3, 5, 8 : usersStore complet avec updateUser + removeUser
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { MOCK_USERS } from '../data/mockData';
 
 const AuthContext = createContext();
+const USERS_KEY   = 'nabta_all_users_v3';
+const TOKEN_KEY   = 'nabta_token';
 
-const USERS_STORAGE_KEY = 'nabta_all_users_v2';
-
-// ── Gestion des utilisateurs locaux (inscrits depuis l'app) ──────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// USERS STORE — persiste dans localStorage
+// ════════════════════════════════════════════════════════════════════════════
 export const usersStore = {
+  _getLocal() {
+    try { return JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); } catch { return []; }
+  },
+  _saveLocal(list) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(list));
+  },
+
+  // Tous les utilisateurs = MOCK + localStorage (sans doublons)
   getAll() {
     try {
-      const saved = localStorage.getItem(USERS_STORAGE_KEY);
-      const local = saved ? JSON.parse(saved) : [];
-      // Fusionner avec les users mockés (sans doublons)
-      const allEmails = new Set(local.map(u => u.email));
-      const mocks = MOCK_USERS.filter(u => !allEmails.has(u.email));
+      const local     = this._getLocal();
+      const localEmails = new Set(local.map(u => u.email?.toLowerCase()));
+      const mocks     = MOCK_USERS.filter(u => !localEmails.has(u.email?.toLowerCase()));
       return [...mocks, ...local];
-    } catch {
-      return MOCK_USERS;
-    }
+    } catch { return MOCK_USERS; }
   },
+
+  // ✅ Ajouter un nouvel inscrit (avec toutes ses coordonnées)
   add(user) {
     try {
-      const saved = localStorage.getItem(USERS_STORAGE_KEY);
-      const local = saved ? JSON.parse(saved) : [];
-      // Éviter les doublons
-      const existe = local.find(u => u.email === user.email);
+      const local   = this._getLocal();
+      const existe  = local.find(u => u.email?.toLowerCase() === user.email?.toLowerCase());
       if (!existe) {
-        local.push(user);
-        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(local));
+        local.push({
+          ...user,
+          actif:       true,
+          dateCreation: new Date().toISOString(),
+        });
+        this._saveLocal(local);
       }
     } catch {}
   },
+
+  // ✅ BUG 5 : Mettre à jour les coordonnées d'un utilisateur
+  updateUser(email, updates) {
+    try {
+      const local = this._getLocal();
+      const idx   = local.findIndex(u => u.email?.toLowerCase() === email?.toLowerCase());
+      if (idx !== -1) {
+        local[idx] = { ...local[idx], ...updates };
+        this._saveLocal(local);
+      }
+    } catch {}
+  },
+
+  // ✅ BUG 5 : Supprimer un compte
+  removeUser(email) {
+    try {
+      const local = this._getLocal().filter(u => u.email?.toLowerCase() !== email?.toLowerCase());
+      this._saveLocal(local);
+    } catch {}
+  },
+
   findByEmail(email) {
     return this.getAll().find(u => u.email?.toLowerCase() === email?.toLowerCase());
   },
 };
 
+// ════════════════════════════════════════════════════════════════════════════
+// AUTH PROVIDER
+// ════════════════════════════════════════════════════════════════════════════
 export const AuthProvider = ({ children }) => {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('nabta_token');
+    const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       verifierToken();
@@ -57,9 +91,9 @@ export const AuthProvider = ({ children }) => {
   const verifierToken = async () => {
     try {
       const { data } = await axios.get('/api/auth/moi');
-      setUser(data.user);
+      setUser({ ...data.user, actif: true });
     } catch {
-      localStorage.removeItem('nabta_token');
+      localStorage.removeItem(TOKEN_KEY);
       delete axios.defaults.headers.common['Authorization'];
       setUser(null);
     } finally {
@@ -73,16 +107,22 @@ export const AuthProvider = ({ children }) => {
         email: email.toLowerCase().trim(),
         motDePasse,
       });
-      localStorage.setItem('nabta_token', data.token);
+      localStorage.setItem(TOKEN_KEY, data.token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-      const userData = { ...data.user, actif: true };
+
+      const userData = {
+        id:        data.user.id || data.user._id,
+        nom:       data.user.nom,
+        email:     data.user.email,
+        role:      data.user.role,
+        telephone: data.user.telephone || '',
+        adresse:   data.user.adresse   || '',
+        actif:     true,
+      };
       setUser(userData);
       return { success: true };
     } catch (err) {
-      return {
-        success: false,
-        message: err.response?.data?.message || 'Email ou mot de passe incorrect.',
-      };
+      return { success: false, message: err.response?.data?.message || 'Email ou mot de passe incorrect.' };
     }
   }, []);
 
@@ -92,34 +132,33 @@ export const AuthProvider = ({ children }) => {
         ...formData,
         email: formData.email.toLowerCase().trim(),
       });
-      localStorage.setItem('nabta_token', data.token);
+      localStorage.setItem(TOKEN_KEY, data.token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
 
       const userData = {
-        id:        data.user.id,
-        nom:       data.user.nom,
-        email:     data.user.email,
-        role:      data.user.role,
+        id:        data.user.id || data.user._id,
+        nom:       formData.nom,
+        email:     formData.email.toLowerCase().trim(),
+        role:      formData.role,
         telephone: formData.telephone || '',
         adresse:   formData.adresse   || '',
+        cin:       formData.cin       || '',
         actif:     true,
+        dateCreation: new Date().toISOString(),
       };
       setUser(userData);
 
-      // ✅ Sauvegarder dans le store local pour que les autres le voient
+      // ✅ BUG 3 & 8 : Sauvegarde COMPLÈTE avec toutes les coordonnées
       usersStore.add(userData);
 
       return { success: true };
     } catch (err) {
-      return {
-        success: false,
-        message: err.response?.data?.message || "Erreur lors de l'inscription.",
-      };
+      return { success: false, message: err.response?.data?.message || "Erreur lors de l'inscription." };
     }
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('nabta_token');
+    localStorage.removeItem(TOKEN_KEY);
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
   }, []);

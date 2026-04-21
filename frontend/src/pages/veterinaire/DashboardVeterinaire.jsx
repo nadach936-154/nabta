@@ -23,7 +23,7 @@ export default function DashboardVeterinaire() {
   return (
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px', color: '#111' }}>
-        Bonjour Dr. {user?.nom?.split(' ')[0]} 👨‍⚕️
+        Bonjour Dr. {user?.nom?.split(' ')[0]}
       </h2>
       <p style={{ color: '#888', margin: '0 0 24px', fontSize: 14 }}>Gérez vos rapports et interventions vétérinaires</p>
 
