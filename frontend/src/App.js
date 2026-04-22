@@ -4,7 +4,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout      from './components/Layout';
 import AssistantIA from './components/AssistantIA';
 import Login       from './pages/auth/Login';
-import Register    from './pages/auth/Register';
+import Register       from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
 import Home        from './pages/Home';
 import Parametres  from './pages/Parametres'; // ✅ BUG 5
 
@@ -71,7 +72,8 @@ export default function App() {
 
           <Route path="/"         element={<Home />} />
           <Route path="/login"    element={<PublicRoute><Login    /></PublicRoute>} />
-          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/register"       element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
 
           <Route path="/dashboard" element={<RoutePrivee><DashboardRouter /></RoutePrivee>} />
 
