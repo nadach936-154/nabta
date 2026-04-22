@@ -1,15 +1,16 @@
+// backend/routes/users.js
 const express = require('express');
-const router = express.Router();
-const User = require('../models/User');
+const router  = express.Router();
+const User    = require('../models/User');
 const { protect, autoriser } = require('../middleware/auth');
 
-// GET /api/users — Admin seulement
+// GET /api/users — Admin : liste tous les utilisateurs
 router.get('/', protect, autoriser('admin'), async (req, res) => {
   try {
-    const users = await User.find().select('-motDePasse');
+    const users = await User.find().select('-motDePasse').sort({ dateCreation: -1 });
     res.json({ success: true, count: users.length, users });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
@@ -19,30 +20,27 @@ router.get('/annuaire', async (req, res) => {
     const { role } = req.query;
     let filtre = { role: { $in: ['veterinaire', 'fournisseur', 'transporteur'] } };
     if (role) filtre.role = role;
-
     const professionnels = await User.find(filtre).select('nom email telephone adresse role');
     res.json({ success: true, professionnels });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// PUT /api/users/profil — Modifier son profil
-router.put('/profil', protect, async (req, res) => {
+// PUT /api/users/:id/toggle-actif — Admin : activer / désactiver un compte
+router.put('/:id/toggle-actif', protect, autoriser('admin'), async (req, res) => {
   try {
-    const { nom, telephone, adresse } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { nom, telephone, adresse },
-      { new: true, runValidators: true }
-    ).select('-motDePasse');
-    res.json({ success: true, user });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'Utilisateur non trouvé.' });
+    user.isActive = !user.isActive;
+    await user.save({ validateBeforeSave: false });
+    res.json({ success: true, isActive: user.isActive });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// PUT /api/users/:id/activer — Admin : activer/désactiver compte
+// PUT /api/users/:id/activer — Admin : activer/désactiver (compatibilité ancienne route)
 router.put('/:id/activer', protect, autoriser('admin'), async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(
@@ -51,21 +49,8 @@ router.put('/:id/activer', protect, autoriser('admin'), async (req, res) => {
       { new: true }
     );
     res.json({ success: true, user });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-});
-// PUT /api/users/changer-mdp
-router.put('/changer-mdp', protect, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).select('+motDePasse');
-    const ok   = await user.verifierMotDePasse(req.body.ancienMdp);
-    if (!ok) return res.status(401).json({ success: false, message: 'Ancien mot de passe incorrect.' });
-    user.motDePasse = req.body.nouveauMdp;
-    await user.save();
-    res.json({ success: true, message: 'Mot de passe mis à jour.' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(400).json({ success: false, message: err.message });
   }
 });
 

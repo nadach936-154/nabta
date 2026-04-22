@@ -1,4 +1,4 @@
-// backend/models/User.js — CIN optionnel (pour compatibilité anciens comptes)
+// backend/models/User.js
 const mongoose = require('mongoose');
 const bcrypt   = require('bcryptjs');
 
@@ -24,10 +24,9 @@ const userSchema = new mongoose.Schema({
   cin: {
     type:    String,
     default: '',
-    // Validation seulement si fourni
     validate: {
       validator: function(v) {
-        if (!v || v === '') return true; // optionnel
+        if (!v || v === '') return true;
         return /^\d{8}$/.test(v);
       },
       message: 'CIN invalide — 8 chiffres requis',
@@ -42,9 +41,13 @@ const userSchema = new mongoose.Schema({
   adresse:      { type: String, default: '' },
   isActive:     { type: Boolean, default: true },
   dateCreation: { type: Date,    default: Date.now },
+
+  // ── Réinitialisation mot de passe ──────────────────────────────────────
+  resetCode:       { type: String, select: false },   // code hashé
+  resetCodeExpire: { type: Date,   select: false },   // expiration 15 min
 });
 
-// Hash avant sauvegarde
+// Hash mot de passe avant sauvegarde
 userSchema.pre('save', async function () {
   if (!this.isModified('motDePasse')) return;
   const salt = await bcrypt.genSalt(10);
